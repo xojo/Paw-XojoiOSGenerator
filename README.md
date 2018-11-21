@@ -4,7 +4,10 @@ A [Paw Extension](http://luckymarmot.com/paw/extensions/) to render the request 
 
 ## Installation
 
-Download the repository as a zip file, unzip and place the [Paw-XojoiOSGenerator-master](https://github.com/xojo/Paw-XojoiOSGenerator) folder in your Paw extensions folder.
+1. Download the repository as a zip file
+2. Unzip
+3. Place the [Paw-XojoiOSGenerator-master](https://github.com/xojo/Paw-XojoiOSGenerator) folder in your Paw extensions folder
+4. Rename folder as com.xojo.PawExtensions.iOSCodeGenerator
 
 ## License
 
