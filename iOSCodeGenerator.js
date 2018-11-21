@@ -1,18 +1,39 @@
 var XojoNewCodeGenerator = function() {
-	this.generate = function(context) {
+	this.generate = function(context, requests, options) {
 		var request = context.getCurrentRequest();
 		
 		var client_code = [];
 		
 		client_code[client_code.length] = "// " + request.name;
+		if (request.description != "") {
+			client_code[client_code.length] = "// " + request.description;
+		}
 		client_code[client_code.length] = "";
+		
+		var vars = request.variables;
+		if (vars.length > 0) {
+			client_code[client_code.length] = "// Variable Definitions"
+			for(i=0;i<vars.length;i++) {
+				var desc = "// " + vars[i].name + ": " + vars[i].description;
+				if (vars[i].required) {
+					desc += " (required)";
+				}
+				client_code[client_code.length] = desc;
+				client_code[client_code.length] = "// " + vars[i].type;
+			}
+			client_code[client_code.length] = "";
+		}
+		
 		client_code[client_code.length] = "// Set up the socket";
-		client_code[client_code.length] = "// \"mySocket\" should be a property/object stored elsewhere so it will not go out of scope";
-		client_code[client_code.length] = "mySocket = New Xojo.Net.HTTPSocket";		
+		client_code[client_code.length] = "// \"mySocket\" should be a property stored elsewhere so it will not go out of scope before the request completes";
+		client_code[client_code.length] = "// Property mySocket as Xojo.Net.HTTPSocket"
+		client_code[client_code.length] = "mySocket = new Xojo.Net.HTTPSocket";		
 		var headers = request.headers;
 		for (var headerName in headers) {
 			var headerValue = headers[headerName];
-			client_code[client_code.length] = "mySocket.RequestHeader(\"" + headerName + "\") = \"" + headerValue + "\"";	
+			if(!(request.body != "" && headerName == "Content-Type")) {
+				client_code[client_code.length] = "mySocket.RequestHeader(\"" + headerName + "\") = \"" + headerValue + "\"";	
+			}
 		}
 		client_code[client_code.length] = "";
 		
@@ -24,52 +45,39 @@ var XojoNewCodeGenerator = function() {
 			if(Object.size(body) > 0) {
 				mimeType = "multipart/form-data";
 				client_code[client_code.length] = "// Multipart";
-				client_code[client_code.length] = "Dim textArr() As Text";
+				client_code[client_code.length] = "Dim textArr() as Text";
 				for(var propertyName in body) {
 					var key = propertyName;
 					var value = body[key];
 					client_code[client_code.length] = "textArr.append \"" + key + "=" + encodeURIComponent(value) + "\"";
 				}
-				client_code[client_code.length] = "Dim textData As Text = Text.Join(textArr,\"&\")";
+				client_code[client_code.length] = "Dim textData as Text = Text.Join(textArr,\"&\")";
 				client_code[client_code.length] = "";
 				client_code[client_code.length] = "// Convert Text to Memoryblock"
 				client_code[client_code.length] = "Dim data As Xojo.Core.MemoryBlock = Xojo.Core.TextEncoding.UTF8.ConvertTextToData(textData)";
 			}
 		} else if(request.jsonBody) {
-			body = request.jsonBody;
-			if(Object.size(body) > 0) {
-				mimeType = "application/json";
-				client_code[client_code.length] = "// JSON"
-				client_code[client_code.length] = "Dim d As New Dictionary"
-				for(var propertyName in body) {
-					var key = propertyName;
-					var value = body[key];
-					if(typeof value == "string") {
-						value = "\"" + value + "\"";
-					} else if(value == null) {
-						value = "nil";
-					} 
-					client_code[client_code.length] = "d.Value(\"" + key + "\") = " + value;
-				}
-				client_code[client_code.length] = "";
-				client_code[client_code.length] = "// Convert Dictionary to JSON Text"
-				client_code[client_code.length] = "Dim json As Text = Xojo.Data.GenerateJSON(d)";
+			body = request.jsonBody;		
+			mimeType = "application/json";
+			client_code[client_code.length] = "// JSON";
 			
-				client_code[client_code.length] = "";
-				client_code[client_code.length] = "// Convert Text to Memoryblock"
-				client_code[client_code.length] = "Dim data As Xojo.Core.MemoryBlock = Xojo.Core.TextEncoding.UTF8.ConvertTextToData(json)";
-			}
+			var jsontext = JSON.stringify(body).replace(/\"/g,"\\\"");
+			client_code[client_code.length] = "Dim json as Text = \"" + jsontext + "\"";
+		
+			client_code[client_code.length] = "";
+			client_code[client_code.length] = "// Convert Text to Memoryblock"
+			client_code[client_code.length] = "Dim data As Xojo.Core.MemoryBlock = Xojo.Core.TextEncoding.UTF8.ConvertTextToData(json)";
 		} else if(request.urlEncodedBody) {
 			body = request.urlEncodedBody;
 			if(Object.size(body) > 0) {
 				mimeType = "application/x-www-form-urlencoded";
-				client_code[client_code.length] = "Dim textArr() As Text";
+				client_code[client_code.length] = "Dim textArr() as Text";
 				for(var propertyName in body) {
 					var key = propertyName;
 					var value = body[key];
-					client_code[client_code.length] = "textArr.Append(\"" + key + ") = " + encodeURIComponent(value) + "\"";
+					client_code[client_code.length] = "textArr.append \"" + key + "=" + encodeURIComponent(value) + "\"";
 				}
-				client_code[client_code.length] = "Dim textData As Text = Text.Join(textArr, \"&\")";
+				client_code[client_code.length] = "Dim textData as Text = Text.Join(textArr,\"&\")";
 				client_code[client_code.length] = "";
 				client_code[client_code.length] = "// Convert Text to Memoryblock"
 				client_code[client_code.length] = "Dim data As Xojo.Core.MemoryBlock = Xojo.Core.TextEncoding.UTF8.ConvertTextToData(textData)";
@@ -82,9 +90,11 @@ var XojoNewCodeGenerator = function() {
 				//body = body.replace(replaceCRLF
 				mimeType = "text/plain";
 				// Some generic body data
+				client_code[client_code.length] = "// Make an EOL object (CRLF)"
+				client_code[client_code.length] = "Dim EOL as Text = Text.FromUnicodeCodepoint(13) + Text.FromUnicodeCodepoint(10)";
+				client_code[client_code.length] = "";
 				client_code[client_code.length] = "// Put raw data into a Text object";
-				client_code[client_code.length] = "Const EOL = &u10";
-				client_code[client_code.length] = "Dim textData As Text = \"" + body.replace(replaceQuotes,"\"\"").replace(replaceCRLF, "\" + EOL + \"") + "\"";
+				client_code[client_code.length] = "Dim textData as Text = \"" + body.replace(replaceQuotes,"\"\"").replace(replaceCRLF, "\" + EOL + \"") + "\"";
 				client_code[client_code.length] = "";
 				client_code[client_code.length] = "// Convert Text to Memoryblock";
 				client_code[client_code.length] = "Dim data As Xojo.Core.MemoryBlock = Xojo.Core.TextEncoding.UTF8.ConvertTextToData(textData)";
@@ -94,21 +104,21 @@ var XojoNewCodeGenerator = function() {
 		if(mimeType) {
 			client_code[client_code.length] = "";
 			client_code[client_code.length] = "// Assign to the Request's Content";
-			client_code[client_code.length] = "mySocket.SetRequestContent(data, \"" + mimeType + "\")";
+			client_code[client_code.length] = "mySocket.SetRequestContent(data,\"" + mimeType + "\")";
 			client_code[client_code.length] = "";
 		}
 		client_code[client_code.length] = "// Set the URL";
-		client_code[client_code.length] = "Dim url As Text = \"" + request.url + "\"";
+		client_code[client_code.length] = "dim url as Text = \"" + request.url + "\"";
 		client_code[client_code.length] = ""
 		client_code[client_code.length] = "// Send Asynchronous Request"
-		client_code[client_code.length] = "mySocket.Send(\"" + request.method + "\", url)";
+		client_code[client_code.length] = "mySocket.Send(\"" + request.method + "\",url)";
 		return client_code.join("\r");
 	}
 }
 
-XojoNewCodeGenerator.identifier = "com.xojo.PawExtensions.newHTTPCodeGenerator";
+XojoNewCodeGenerator.identifier = "com.xojo.PawExtensions.iOSCodeGenerator";
 
-XojoNewCodeGenerator.title = "Xojo New Framework"
+XojoNewCodeGenerator.title = "Xojo iOS Framework"
 
 XojoNewCodeGenerator.fileExtension = ".xojo_code"
 
