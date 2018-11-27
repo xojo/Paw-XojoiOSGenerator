@@ -17,7 +17,7 @@ var XojoNewCodeGenerator = function() {
 				client_code[client_code.length] = "// NOTE: Starting with Xojo 2018r4, use of insecure connections";
 				client_code[client_code.length] = "// in a macOS app requires the addition of the following plist key:";
 				client_code[client_code.length] = "// <key>NSAppTransportSecurity</key>";
-				client_code[client_code.length] = "// <dict><key>NSAllowsArbitraryLoads</key><true/><key>NSAllowsLocalNetworking</key><true/></dict>";
+				client_code[client_code.length] = "// <dict><key>NSAllowsArbitraryLoads</key><true/></dict>";
 				client_code[client_code.length] = "";
 			}
 			
